@@ -1,57 +1,77 @@
 <template>
-  <div>
+  <main class="main-container">
     <h2> Проектные данные </h2>
-    <button> Основное </button>
-    <button :disabled="!isDisabled" style="cursor: not-allowed"> Перечень ПСД </button>
-    <h4> Наименование и шифр</h4>
+    <div class="button-group">
+      <button class="basic-btn" style="margin-right: 5px"> Основное </button>
+      <button class="btn-disabled" style="cursor: not-allowed" data-tooltip="эта подсказка длиннее, чем элемент"> Перечень ПСД </button>
+    </div>
+    <div class="form-container">
+      <div class="form-block">
+        <form ref="formData">
+          <div class="form-column">
+            <h4> Наименование и шифр</h4>
+            <hr>
+            <label for="name">Наименование</label>
+            <input type="text" v-model="projectName" id="name">
+
+            <label for="code">Шифр</label>
+            <input type="text" v-model="projectCode" id="code">
+          </div>
+          <div class="form-column">
+            <h4> Местонахождение проекта</h4>
+            <hr>
+            <template v-for="field in fields" :key="field.id">
+              <label :for="field.id">{{ field.label }}</label>
+              <input @input="fetchDataFrom" v-model="field.value" :id="field.id" @focus="showDropdown(field.listId)">
+              <ul v-if="showList(field.listId)" class="dropdown-list">
+                <li v-for="information in responseData" :key="information.id" @click="selectOption(field, information[field.apiProperty])">
+                  {{ information[field.apiProperty] }}
+                </li>
+              </ul>
+            </template>
+
+            <div class="address-column">
+              <div>
+                <label for="house">Дом</label>
+                <input type="text" v-model="projectHouse" id="house">
+              </div>
+              <div>
+                <label for="housing">Корпус</label>
+                <input type="text" v-model="projectHousing" id="housing">
+              </div>
+            </div>
+
+            <label for="index">Почтовый индекс</label>
+            <input class="postcode" type="number" v-model="projectPostcode" id="index">
+          </div>
+        </form>
+      </div>
+    </div>
     <hr>
-    <form ref="form" action="pinia.js" method="post">
-      <label for="name">Наименование</label>
-      <input type="text" v-model="projectName" id="name">
-
-      <label for="code">Шифр</label>
-      <input type="text" v-model="projectCode" id="code">
-
-      <template v-for="field in fields" :key="field.id">
-        <label :for="field.id">{{ field.label }}</label>
-        <input @input="fetchDataFrom" type="text" v-model="field.value" :id="field.id" :list="field.listId">
-        <datalist :id="field.listId">
-          <option v-for="information in responseData" :key="information.id" :value="information[field.apiProperty]" />
-        </datalist>
-      </template>
-
-      <label for="house">Дом</label>
-      <input type="text" v-model="projectHouse" id="house">
-
-      <label for="housing">Корпус</label>
-      <input type="text" v-model="projectHousing" id="housing">
-
-      <label for="index">Почтовый индекс</label>
-      <input type="number" v-model="projectIndex" id="index">
-
-    </form>
-  </div>
-  <hr>
-  <input type="reset" @click="cancelChanges" value="Отменить">
-  <input type="submit" @click="saveChanges" value="Сохранить">
+    <div class="bottom-bnt">
+      <button :class="isDisabled || emptyFields || !hasChanges ? 'btn-disabled' : 'save-btn'" :disabled="isDisabled || !hasChanges" type="submit" @click="saveChanges">Сохранить</button>
+      <button :disabled="!hasChanges" class="reset-btn" type="reset" @click="cancelChanges">Отменить</button>
+      <!--      не активна должна быть есть поля пустые-->
+    </div>
+  </main>
 </template>
 
 <script>
 import axios from 'axios'
-import {onMounted, ref} from 'vue'
-import { useProjectModule } from '../pinia'
+import { onMounted, ref, computed, watch } from 'vue'
 
 export default {
   setup() {
-    const projectModule = useProjectModule()
     const projectName = ref('')
     const projectCode = ref('')
     const projectHouse = ref('')
     const projectHousing = ref('')
-    const projectIndex = ref('')
-    const isDisabled = ref(false)
+    const projectPostcode = ref('')
+    const activeList = ref(null)
+    const isDisabled = ref(true)
     const responseData = ref([])
-    const form = ref(null)
+    const showError = ref(false)
+
     const fields = ref([
       { id: 'allCountries', label: 'Страна', apiProperty: 'country', listId: 'countries', value: '' },
       { id: 'region', label: 'Область/Край', apiProperty: 'region_with_type', listId: 'regions', value: '' },
@@ -60,7 +80,8 @@ export default {
     ])
 
     const fetchDataFrom = () => {
-      axios.post(
+      axios
+          .post(
           'https://dadata.ru/api/v2/suggest/address',
           {
             query: "value",
@@ -71,79 +92,111 @@ export default {
               Authorization: 'Token 50535c6ad48bfcc31f62b5b76743ce0169a05d88',
             },
           }
-      )
-          .then(res => {
-            responseData.value = res.data.suggestions.map(suggestion => suggestion.data)
-          })
+      ).then(res => {
+        responseData.value = res.data.suggestions.map(suggestion => suggestion.data)
+      })
           .catch(error => {
             console.error(error)
           })
     }
+
+    const hasChanges = computed(() => {
+      return (
+          projectName.value !== localStorage.getItem('Name') ||
+          projectCode.value !== localStorage.getItem('Code') ||
+          projectHouse.value !== localStorage.getItem('House') ||
+          projectHousing.value !== localStorage.getItem('Housing') ||
+          projectPostcode.value !== localStorage.getItem('Index') ||
+          fields.value.some((field) => field.value !== localStorage.getItem(field.id))
+      )
+    })
+    const emptyFields = computed(() => {
+      return (
+          projectName.value.trim() === '' ||
+          projectCode.value.trim() === '' ||
+          projectHouse.value.trim() === '' ||
+          projectHousing.value.trim() === '' ||
+          fields.value.some((field) => field.value.trim() === '')
+      )
+    })
     const saveChanges = () => {
-      isDisabled.value = true
-      if (projectName.value && projectCode.value && projectHouse.value && projectHousing.value && projectIndex.value != '') {
+      if (fields.value && projectName.value && projectCode.value && projectHouse.value && projectHousing.value && projectPostcode.value != '') {
         localStorage.setItem('Name', projectName.value)
         localStorage.setItem('Code', projectCode.value)
         localStorage.setItem('House', projectHouse.value)
         localStorage.setItem('Housing', projectHousing.value)
-        localStorage.setItem('Index', projectIndex.value)
+        localStorage.setItem('Index', projectPostcode.value)
         for (const field of fields.value) {
           localStorage.setItem(field.id, field.value)
         }
-      alert("Данные сохранены")
+        isDisabled.value = false
+        alert("Данные сохранены")
       } else {
+        isDisabled.value = true
         alert("Заполните все поля")
       }
     }
+
+    const showDropdown = (listId) => {
+      activeList.value = listId;
+    };
+
+    const showList = (listId) => {
+      return activeList.value === listId && responseData.value.length > 0;
+    };
+
+    const selectOption = (field, value) => {
+      field.value = value;
+      activeList.value = null;
+    };
+
+    watch(responseData, (newValue) => {
+      if (newValue.length === 0) {
+        activeList.value = null;
+      }
+    });
     const cancelChanges = () => {
-      projectName.value = ''
-      projectCode.value = ''
-      projectHouse.value = ''
-      projectHousing.value = ''
-      projectIndex.value = ''
+      projectName.value = '' || localStorage.getItem('Name')
+      projectCode.value = '' || localStorage.getItem('Code')
+      projectHouse.value = '' || localStorage.getItem('House')
+      projectHousing.value = '' || localStorage.getItem('Housing')
+      projectPostcode.value = '' || localStorage.getItem('Index')
       for (const field of fields.value) {
-        field.value = ''
+        field.value = '' || localStorage.getItem(field.id)
       }
     }
+    watch([projectName, projectCode, projectHouse, projectHousing, fields], () => {
+      isDisabled.value = emptyFields.value
+    })
     onMounted(() => {
       projectName.value = localStorage.getItem('Name') || ''
       projectCode.value = localStorage.getItem('Code') || ''
-      projectHouse.value = localStorage.getItem('projectHouse') || ''
-      projectHousing.value = localStorage.getItem('projectHousing') || ''
-      projectIndex.value = localStorage.getItem('projectIndex') || ''
+      projectHouse.value = localStorage.getItem('House') || ''
+      projectHousing.value = localStorage.getItem('Housing') || ''
+      projectPostcode.value = localStorage.getItem('Index') || ''
       for (const field of fields.value) {
         field.value = localStorage.getItem(field.id)
       }
     })
     return {
+      showDropdown,
+      showList,
+      selectOption,
       saveChanges,
       projectCode,
       projectName,
       projectHouse,
       projectHousing,
-      projectIndex,
+      projectPostcode,
       isDisabled,
       responseData,
       fetchDataFrom,
       fields,
-      projectModule,
-      form,
-      cancelChanges
+      cancelChanges,
+      showError,
+      emptyFields,
+      hasChanges
     }
   }
 }
 </script>
-
-<style scoped>
-label {
-  font-size: 14px;
-}
-input {
-  border: none;
-  border-bottom: 2px solid #D0D4E3;
-}
-input:focus {
-  outline: none;
-  border-bottom: 2px solid #161619;
-}
-</style>

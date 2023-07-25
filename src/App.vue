@@ -1,7 +1,7 @@
 <template>
-  <header></header>
+  <main-header/>
   <nav>
-<!--    <breadcrumb-nav/>-->
+    <breadcrumb-nav/>
   </nav>
   <main>
     <project-data/>
@@ -10,22 +10,19 @@
 
 <script>
 import ProjectData from './components/ProjectData.vue'
+import MainHeader from './components/MainHeader'
+import BreadcrumbNav from './components/BreadcrumbNav'
 
 export default {
   name: 'App',
   components: {
-    ProjectData
+    MainHeader,
+    ProjectData,
+    BreadcrumbNav
   }
 }
 </script>
 
 <style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
-}
+@import "./css/style.css";
 </style>
