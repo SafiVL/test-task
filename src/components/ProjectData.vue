@@ -11,45 +11,55 @@
           <div class="form-column">
             <h4> Наименование и шифр</h4>
             <hr>
-            <label for="name">Наименование</label>
-            <input type="text" v-model="projectName" id="name">
+            <div class="all-fields">
+              <label for="name">Наименование</label>
+              <input :class="{ 'empty-input': isEmptyInput(project.name) }" type="text" v-model="project.name" id="name">
+              <span v-if="isEmptyInput(project.name)" class="error-message">Ошибка</span>
+            </div>
 
-            <label for="code">Шифр</label>
-            <input type="text" v-model="projectCode" id="code">
-          </div>
+            <div class="all-fields">
+              <label for="code">Шифр</label>
+              <input :class="{ 'empty-input': isEmptyInput(project.code) }" type="text" v-model="project.code" id="code">
+              <span v-if="isEmptyInput(project.code)" class="error-message">Ошибка</span>
+            </div>
+
           <div class="form-column">
             <h4> Местонахождение проекта</h4>
             <hr>
             <template v-for="field in fields" :key="field.id">
               <label :for="field.id">{{ field.label }}</label>
-              <input @input="fetchDataFrom" v-model="field.value" :id="field.id" @focus="showDropdown(field.listId)">
+              <input class="all-fields" @input="fetchDataFrom" v-model="project[field.apiProperty]" :class="{ 'empty-input': isEmptyInput(project[field.apiProperty]) }" :id="field.id" @focus="showDropdown(field.listId)">
+              <span v-if="isEmptyInput(project[field.apiProperty])" class="error-message">Ошибка</span>
               <ul v-if="showList(field.listId)" class="dropdown-list">
                 <li v-for="information in responseData" :key="information.id" @click="selectOption(field, information[field.apiProperty])">
                   {{ information[field.apiProperty] }}
                 </li>
               </ul>
             </template>
-
-            <div class="address-column">
+          </div>
+            <div class="address-column all-fields">
               <div>
                 <label for="house">Дом</label>
-                <input type="text" v-model="projectHouse" id="house">
+                <input :class="{ 'empty-input': isEmptyInput(project.house) }" type="text" v-model="project.house" id="house">
+                <span v-if="isEmptyInput(project.house)" class="error-message">Ошибка</span>
               </div>
               <div>
                 <label for="housing">Корпус</label>
-                <input type="text" v-model="projectHousing" id="housing">
+                <input :class="{ 'empty-input': isEmptyInput(project.housing) }" type="text" v-model="project.housing" id="housing">
+                <span v-if="isEmptyInput(project.housing)" class="error-message">Ошибка</span>
               </div>
             </div>
 
             <label for="index">Почтовый индекс</label>
-            <input class="postcode" type="number" v-model="projectPostcode" id="index">
+            <input :class="{ 'empty-input': isEmptyInput(project.postcode) }" class="postcode" type="number" v-model="project.postcode" id="index">
+            <span v-if="isEmptyInput(project.postcode)" class="error-message">Ошибка</span>
           </div>
         </form>
       </div>
     </div>
     <hr>
     <div class="bottom-bnt">
-      <button :class="isDisabled || emptyFields || !hasChanges ? 'btn-disabled' : 'save-btn'" :disabled="isDisabled || !hasChanges" type="submit" @click="saveChanges">Сохранить</button>
+      <button :class="isSaveButtonActive ? 'save-btn' : 'btn-disabled'" :disabled="!isSaveButtonActive" type="submit" @click="saveChanges">Сохранить</button>
       <button :disabled="!hasChanges" class="reset-btn" type="reset" @click="cancelChanges">Отменить</button>
       <!--      не активна должна быть есть поля пустые-->
     </div>
@@ -62,26 +72,29 @@ import { onMounted, ref, computed, watch } from 'vue'
 
 export default {
   setup() {
-    const projectName = ref('')
-    const projectCode = ref('')
-    const projectHouse = ref('')
-    const projectHousing = ref('')
-    const projectPostcode = ref('')
+
     const activeList = ref(null)
     const isDisabled = ref(true)
     const responseData = ref([])
     const showError = ref(false)
+    const project = ref({
+      name: '',
+      code: '',
+      house: '',
+      housing: '',
+      postcode: ''
+    })
 
     const fields = ref([
-      { id: 'allCountries', label: 'Страна', apiProperty: 'country', listId: 'countries', value: '' },
-      { id: 'region', label: 'Область/Край', apiProperty: 'region_with_type', listId: 'regions', value: '' },
-      { id: 'locality', label: 'Населенный пункт', apiProperty: 'settlement', listId: 'settlement', value: '' },
-      { id: 'street', label: 'Улица/Проспект', apiProperty: 'street', listId: 'streets', value: '' },
+      { id: 'allCountries', label: 'Страна', apiProperty: 'country', listId: 'countries' },
+      { id: 'region', label: 'Область/Край', apiProperty: 'region_with_type', listId: 'regions' },
+      { id: 'locality', label: 'Населенный пункт', apiProperty: 'settlement', listId: 'settlement' },
+      { id: 'street', label: 'Улица/Проспект', apiProperty: 'street', listId: 'streets' },
     ])
 
     const fetchDataFrom = () => {
       axios
-          .post(
+        .post(
           'https://dadata.ru/api/v2/suggest/address',
           {
             query: "value",
@@ -92,9 +105,9 @@ export default {
               Authorization: 'Token 50535c6ad48bfcc31f62b5b76743ce0169a05d88',
             },
           }
-      ).then(res => {
-        responseData.value = res.data.suggestions.map(suggestion => suggestion.data)
-      })
+        ).then(res => {
+          responseData.value = res.data.suggestions.map(suggestion => suggestion.data)
+        })
           .catch(error => {
             console.error(error)
           })
@@ -102,92 +115,78 @@ export default {
 
     const hasChanges = computed(() => {
       return (
-          projectName.value !== localStorage.getItem('Name') ||
-          projectCode.value !== localStorage.getItem('Code') ||
-          projectHouse.value !== localStorage.getItem('House') ||
-          projectHousing.value !== localStorage.getItem('Housing') ||
-          projectPostcode.value !== localStorage.getItem('Index') ||
-          fields.value.some((field) => field.value !== localStorage.getItem(field.id))
+          project.value.name !== localStorage.getItem('Name') ||
+          project.value.code !== localStorage.getItem('Code') ||
+          project.value.house !== localStorage.getItem('House') ||
+          project.value.housing !== localStorage.getItem('Housing') ||
+          project.value.postcode !== localStorage.getItem('Index')
       )
     })
+    const isEmptyInput = (value) => {
+      return typeof value === 'string' && value.trim() === ''
+    }
     const emptyFields = computed(() => {
       return (
-          projectName.value.trim() === '' ||
-          projectCode.value.trim() === '' ||
-          projectHouse.value.trim() === '' ||
-          projectHousing.value.trim() === '' ||
-          fields.value.some((field) => field.value.trim() === '')
+          project.value.name.trim() === '' ||
+          project.value.code.trim() === '' ||
+          project.value.house.trim() === '' ||
+          project.value.housing.trim() === ''
       )
     })
+    const isSaveButtonActive = computed(() => {
+      return !emptyFields.value && hasChanges.value
+    })
+
     const saveChanges = () => {
-      if (fields.value && projectName.value && projectCode.value && projectHouse.value && projectHousing.value && projectPostcode.value != '') {
-        localStorage.setItem('Name', projectName.value)
-        localStorage.setItem('Code', projectCode.value)
-        localStorage.setItem('House', projectHouse.value)
-        localStorage.setItem('Housing', projectHousing.value)
-        localStorage.setItem('Index', projectPostcode.value)
-        for (const field of fields.value) {
-          localStorage.setItem(field.id, field.value)
-        }
-        isDisabled.value = false
-        alert("Данные сохранены")
+      if (!emptyFields.value && hasChanges.value) {
+        localStorage.setItem('projectData', JSON.stringify(project.value))
+
+        alert('Данные сохранены')
+        isDisabled.value = true
       } else {
         isDisabled.value = true
-        alert("Заполните все поля")
+        alert('Заполните все поля')
       }
     }
 
     const showDropdown = (listId) => {
-      activeList.value = listId;
-    };
+      activeList.value = listId
+    }
 
     const showList = (listId) => {
-      return activeList.value === listId && responseData.value.length > 0;
-    };
+      return activeList.value === listId && responseData.value.length > 0
+    }
 
     const selectOption = (field, value) => {
-      field.value = value;
-      activeList.value = null;
-    };
+      project.value[field.apiProperty] = value
+      activeList.value = null
+    }
 
     watch(responseData, (newValue) => {
       if (newValue.length === 0) {
-        activeList.value = null;
+        activeList.value = null
       }
-    });
-    const cancelChanges = () => {
-      projectName.value = '' || localStorage.getItem('Name')
-      projectCode.value = '' || localStorage.getItem('Code')
-      projectHouse.value = '' || localStorage.getItem('House')
-      projectHousing.value = '' || localStorage.getItem('Housing')
-      projectPostcode.value = '' || localStorage.getItem('Index')
-      for (const field of fields.value) {
-        field.value = '' || localStorage.getItem(field.id)
+    })
+    const getLocalStorageData = () => {
+      if (localStorage.getItem('projectData')) {
+        project.value = JSON.parse(localStorage.getItem('projectData'))
       }
     }
-    watch([projectName, projectCode, projectHouse, projectHousing, fields], () => {
+    const cancelChanges = () => {
+      getLocalStorageData()
+    }
+    watch(() => [project.value.name, project.value.code, project.value.house, project.value.housing ], () => {
       isDisabled.value = emptyFields.value
     })
     onMounted(() => {
-      projectName.value = localStorage.getItem('Name') || ''
-      projectCode.value = localStorage.getItem('Code') || ''
-      projectHouse.value = localStorage.getItem('House') || ''
-      projectHousing.value = localStorage.getItem('Housing') || ''
-      projectPostcode.value = localStorage.getItem('Index') || ''
-      for (const field of fields.value) {
-        field.value = localStorage.getItem(field.id)
-      }
+      getLocalStorageData()
     })
     return {
+      isEmptyInput,
       showDropdown,
       showList,
       selectOption,
       saveChanges,
-      projectCode,
-      projectName,
-      projectHouse,
-      projectHousing,
-      projectPostcode,
       isDisabled,
       responseData,
       fetchDataFrom,
@@ -195,8 +194,25 @@ export default {
       cancelChanges,
       showError,
       emptyFields,
-      hasChanges
+      hasChanges,
+      project,
+      isSaveButtonActive
     }
   }
 }
 </script>
+
+<style>
+.empty-input {
+  border-bottom: 2px solid red;
+}
+.error-message {
+  margin-top: 4px;
+  display: flex;
+  color: red;
+  font-size: 14px;
+}
+.all-fields {
+  margin-bottom: 20px;
+}
+</style>

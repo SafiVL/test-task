@@ -22,30 +22,6 @@ body {
   height: 56px;
 }
 
-/* project data*/
-
-/*.input-container {*/
-/*  position: relative;*/
-/*}*/
-
-/*.error-message {*/
-/*  position: absolute;*/
-/*  left: 0;*/
-/*  color: red;*/
-/*}*/
-
-/*.input-error {*/
-/*  outline: none;*/
-/*  border-bottom: 1px solid red;*/
-/*}*/
-/*.input-error:focus {*/
-/*  outline: none;*/
-/*  border-bottom: 1px solid red;*/
-/*}*/
-/*.input-error:hover {*/
-/*  outline: none;*/
-/*  border-bottom: 1px solid red;*/
-/*}*/
 img {
   margin-top: 15px;
   padding-left: 20px;
@@ -164,7 +140,6 @@ label {
 }
 
 input {
-  margin-bottom: 20px;
   border: none;
   border-bottom: 2px solid #D0D4E3;
   width: 50%;
