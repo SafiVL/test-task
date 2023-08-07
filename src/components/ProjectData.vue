@@ -12,47 +12,33 @@
             <h4> Наименование и шифр</h4>
             <hr>
             <div class="all-fields">
-              <label for="name">Наименование</label>
-              <input :class="{ 'empty-input': isEmptyInput(project.name) }" type="text" v-model="project.name" id="name">
-              <span v-if="isEmptyInput(project.name)" class="error-message">Ошибка</span>
+              <label>Наименование</label>
+              <ui-input v-model="project.name" required></ui-input>
             </div>
-
             <div class="all-fields">
-              <label for="code">Шифр</label>
-              <input :class="{ 'empty-input': isEmptyInput(project.code) }" type="text" v-model="project.code" id="code">
-              <span v-if="isEmptyInput(project.code)" class="error-message">Ошибка</span>
+              <label>Шифр</label>
+              <ui-input v-model="project.code" required></ui-input>
             </div>
-
           <div class="form-column">
             <h4> Местонахождение проекта</h4>
             <hr>
             <template v-for="field in fields" :key="field.id">
-              <label :for="field.id">{{ field.label }}</label>
-              <input class="all-fields" @input="fetchDataFrom" v-model="project[field.apiProperty]" :class="{ 'empty-input': isEmptyInput(project[field.apiProperty]) }" :id="field.id" @focus="showDropdown(field.listId)">
-              <span v-if="isEmptyInput(project[field.apiProperty])" class="error-message">Ошибка</span>
-              <ul v-if="showList(field.listId)" class="dropdown-list">
-                <li v-for="information in responseData" :key="information.id" @click="selectOption(field, information[field.apiProperty])">
-                  {{ information[field.apiProperty] }}
-                </li>
-              </ul>
+              <label :for="field">{{ field.label }}</label>
+              <autocomplete-input :response-data="activeFieldData" required/>
             </template>
           </div>
             <div class="address-column all-fields">
               <div>
-                <label for="house">Дом</label>
-                <input :class="{ 'empty-input': isEmptyInput(project.house) }" type="text" v-model="project.house" id="house">
-                <span v-if="isEmptyInput(project.house)" class="error-message">Ошибка</span>
+                <label>Дом</label>
+                <ui-input v-model="project.house" required></ui-input>
               </div>
               <div>
-                <label for="housing">Корпус</label>
-                <input :class="{ 'empty-input': isEmptyInput(project.housing) }" type="text" v-model="project.housing" id="housing">
-                <span v-if="isEmptyInput(project.housing)" class="error-message">Ошибка</span>
+                <label>Корпус</label>
+                <ui-input v-model="project.housing" required></ui-input>
               </div>
             </div>
-
-            <label for="index">Почтовый индекс</label>
-            <input :class="{ 'empty-input': isEmptyInput(project.postcode) }" class="postcode" type="number" v-model="project.postcode" id="index">
-            <span v-if="isEmptyInput(project.postcode)" class="error-message">Ошибка</span>
+            <label>Почтовый индекс</label>
+            <ui-input v-model="project.postcode"  required></ui-input>
           </div>
         </form>
       </div>
@@ -69,10 +55,15 @@
 <script>
 import axios from 'axios'
 import { onMounted, ref, computed, watch } from 'vue'
+import UiInput from '../components/UiInput'
+import AutocompleteInput from '../components/AutocompleteInput'
 
 export default {
+  components: {
+    UiInput,
+    AutocompleteInput
+  },
   setup() {
-
     const activeList = ref(null)
     const isDisabled = ref(true)
     const responseData = ref([])
@@ -95,7 +86,7 @@ export default {
     const fetchDataFrom = () => {
       axios
         .post(
-          'https://dadata.ru/api/v2/suggest/address',
+          'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address',
           {
             query: "value",
             count: 20
@@ -106,13 +97,21 @@ export default {
             },
           }
         ).then(res => {
+          console.log(res.data)
           responseData.value = res.data.suggestions.map(suggestion => suggestion.data)
         })
           .catch(error => {
             console.error(error)
           })
     }
-
+    const activeFieldData = computed(() => {
+      const activeField = fields.value.find((field) => field.id === activeList.value)
+      if (activeField) {
+        const apiProperty = activeField.apiProperty
+        return responseData.value.map((data) => data[apiProperty])
+      }
+      return []
+    })
     const hasChanges = computed(() => {
       return (
           project.value.name !== localStorage.getItem('Name') ||
@@ -122,9 +121,7 @@ export default {
           project.value.postcode !== localStorage.getItem('Index')
       )
     })
-    const isEmptyInput = (value) => {
-      return typeof value === 'string' && value.trim() === ''
-    }
+
     const emptyFields = computed(() => {
       return (
           project.value.name.trim() === '' ||
@@ -140,7 +137,6 @@ export default {
     const saveChanges = () => {
       if (!emptyFields.value && hasChanges.value) {
         localStorage.setItem('projectData', JSON.stringify(project.value))
-
         alert('Данные сохранены')
         isDisabled.value = true
       } else {
@@ -151,10 +147,6 @@ export default {
 
     const showDropdown = (listId) => {
       activeList.value = listId
-    }
-
-    const showList = (listId) => {
-      return activeList.value === listId && responseData.value.length > 0
     }
 
     const selectOption = (field, value) => {
@@ -182,9 +174,7 @@ export default {
       getLocalStorageData()
     })
     return {
-      isEmptyInput,
       showDropdown,
-      showList,
       selectOption,
       saveChanges,
       isDisabled,
@@ -196,22 +186,15 @@ export default {
       emptyFields,
       hasChanges,
       project,
-      isSaveButtonActive
+      isSaveButtonActive,
+      activeFieldData
     }
   }
 }
 </script>
 
 <style>
-.empty-input {
-  border-bottom: 2px solid red;
-}
-.error-message {
-  margin-top: 4px;
-  display: flex;
-  color: red;
-  font-size: 14px;
-}
+
 .all-fields {
   margin-bottom: 20px;
 }
